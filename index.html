@@ -1,15 +1,39 @@
 <html>
 <head>
+    <link rel="stylesheet" type="text/css" href="node_modules/flipdown/dist/flipdown.min.css"/>
+    <script type="text/javascript" src="node_modules/flipdown/dist/flipdown.min.js"></script>
     <style>
         body {
-            background: url('/rv.jpeg');
-            background-size: contain;
-            height: 100vh;
+            margin: 0;
+            padding: 0;
+            background: #70b2b8;
+        }
+        
+        .background {
+            position: absolute;
+            object-fit: contain;
+            max-height: 100%;
+            max-width: 100%;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            margin: auto;
+        }
+
+        .flipdown {
+            margin-left: auto;
+            margin-right: auto;
+            margin-top: 2rem;
         }
     </style>
     <title> Rest & Vest </title>
 </head>
 <body>
-
+    <img src="/rv.jpeg" class="background"></div>
+    <div id="flipdown" class="flipdown"></div>
+    <script>
+        new FlipDown(1726347600, 'flipdown').start()
+    </script>
 </body>
 </html>
