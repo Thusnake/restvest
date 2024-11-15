@@ -6,12 +6,10 @@
         body {
             margin: 0;
             padding: 0;
-            background: #70b2b8;
         }
         
-        .background {
+        .image, .backdrop {
             position: absolute;
-            object-fit: contain;
             max-height: 100%;
             max-width: 100%;
             top: 0;
@@ -19,6 +17,31 @@
             right: 0;
             bottom: 0;
             margin: auto;
+            background-image: url("rv.jpeg");
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+
+        .backdrop {
+            object-fit: cover;
+            background-size: cover;
+            filter: blur(20px)
+        }
+
+        .image {
+            object-fit: contain;
+            background-size: contain;
+        }
+
+        @media (prefers-color-scheme: light) {
+            .backdrop, .image {
+                background-image: url("rv-light.png");
+            }
+        }
+        @media (prefers-color-scheme: dark) {
+            .backdrop, .image {
+                background-image: url("rv-dark.png");
+            }
         }
 
         .flipdown {
@@ -30,7 +53,8 @@
     <title> Rest & Vest </title>
 </head>
 <body>
-    <img src="/rv.jpeg" class="background"></div>
+    <div class="backdrop"></div>
+    <div class="image"></div>
     <div id="flipdown" class="flipdown"></div>
     <script>
         new FlipDown(1734213600, 'flipdown').start()
