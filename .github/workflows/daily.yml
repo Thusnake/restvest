@@ -32,7 +32,7 @@ jobs:
                   fi
                   RESPONSE=$(curl -s "$URL")
                   STATUS=$(echo "$RESPONSE" | jq -r '.status')
-                  if [ "$STATUS" != "ok" ]; then
+                  if [ "$STATUS" != "success" ]; then
                      echo "Failed to fetch news or invalid response."
                      exit 1
                   fi
