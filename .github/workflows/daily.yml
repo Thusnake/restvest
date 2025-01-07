@@ -42,7 +42,6 @@ jobs:
                      break
                   fi
                done
-      
                echo "Fetched Descriptions:"
                echo "$ALL_DESCRIPTIONS"
            env:
