@@ -25,7 +25,7 @@ jobs:
                # Fetch news descriptions and save them to a variable
                PAGE=""
                ALL_DESCRIPTIONS=""
-               for i in (0..5); do
+               for i in {0..5}; do
                   URL="https://newsdata.io/api/1/latest\?apikey\=$NEWSDATA_API_KEY\&country\=bg\&domain\=24chasa,dnevnik,mediapool\&category\=politics,business"
                   if [ "$PAGE" != "" ]; then
                      URL = "$URL\&page\=$PAGE"
