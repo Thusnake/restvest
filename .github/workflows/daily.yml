@@ -29,6 +29,7 @@ jobs:
                   URL="https://newsdata.io/api/1/latest\?apikey\=$NEWSDATA_API_KEY\&country\=bg\&domain\=24chasa,dnevnik,mediapool\&category\=politics,business"
                   if [ "$PAGE" != "" ]; then
                      URL = "$URL\&page\=$PAGE"
+                  fi
                   RESPONSE=$(curl -s "$URL")
                   STATUS=$(echo "$RESPONSE" | jq -r '.status')
                   if [ "$STATUS" != "ok" ]; then
