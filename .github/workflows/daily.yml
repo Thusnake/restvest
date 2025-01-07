@@ -1,0 +1,65 @@
+name: Generate a new daily image pair
+
+on:
+   schedule:
+      - cron: '0 0 * * *'
+   workflow_dispatch: # Allows manual trigger of the action
+
+jobs:
+   fetch-news:
+      runs-on: ubuntu-latest
+      steps:
+         - name: Checkout repository
+           uses: actions/checkout@v2
+
+         - name: Set up dependencies
+           run: |
+              sudo apt-get update
+              sudo apt-get install -y jq curl
+
+         - name: Fetch news data
+           run: |
+               # Fetch news descriptions and save them to a variable
+               PAGE=""
+               ALL_DESCRIPTIONS=""
+               for i in (0..5); do
+                  URL="https://newsdata.io/api/1/latest\?apikey\=$NEWSDATA_API_KEY\&country\=bg\&domain\=24chasa,dnevnik,mediapool\&category\=politics,business"
+                  if [ "$PAGE" != "" ]; then
+                     URL = "$URL\&page\=$PAGE"
+                  RESPONSE=$(curl -s "$URL")
+                  STATUS=$(echo "$RESPONSE" | jq -r '.status')
+                  if [ "$STATUS" != "ok" ]; then
+                     echo "Failed to fetch news or invalid response."
+                     exit 1
+                  fi
+                  DESCRIPTIONS=$(echo "$RESPONSE" | jq -r '.results[].description')
+                  ALL_DESCRIPTIONS+="$DESCRIPTIONS\n\n"
+                  PAGE=$(echo "$RESPONSE" | jq -r '.nextPage')
+                  if [ "$PAGE" == "null" ]; then
+                     break
+                  fi
+               done
+      
+               echo "Fetched Descriptions:"
+               echo "$ALL_DESCRIPTIONS"
+           env:
+              NEWSDATA_API_KEY: ${{ secrets.NEWSDATA_API_KEY }}
+
+         - name: Summarize news data
+           run: |
+               SUMMARY=$(curl -s -X POST "https://api.openai.com/v1/completions" \
+                  -H "Content-Type: application/json" \
+                  -H "Authorization: Bearer $OPENAI_API_KEY" \
+                  -d '{
+                     "model": "gpt-3.5-turbo",
+                     "messages": [{"role": "user", "content": "Please summarize the following Bulgarian news articles:\n'"$ALL_DESCRIPTIONS"'"}]
+                  }')
+               SUMMARY_TEXT=$(echo $SUMMARY | jq -r '.choices[0].message.content')
+               echo "Summary of today's news:"
+               echo "$SUMMARY_TEXT"
+
+         # - name: Upload news data as an artifact
+         #   uses: actions/upload-artifact@v2
+         #   with:
+         #      name: btv_novinite_news
+         #      path: all_btv_novinite_articles.txt
