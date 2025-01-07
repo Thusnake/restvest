@@ -1,8 +1,11 @@
 name: Generate a new daily image pair
 
 on:
-   schedule:
-      - cron: '0 0 * * *'
+   push:
+      branches:
+         - 'topic/daily-action' # Trigger on this branch for testing
+   # schedule:
+   #    - cron: '0 0 * * *'
    workflow_dispatch: # Allows manual trigger of the action
 
 jobs:
