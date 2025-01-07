@@ -58,6 +58,8 @@ jobs:
                      "messages": [{"role": "user", "content": "Please summarize the following Bulgarian news articles:\n'"$ALL_DESCRIPTIONS"'"}]
                   }')
                SUMMARY_TEXT=$(echo $SUMMARY | jq -r '.choices[0].message.content')
+               echo "Full response:"
+               echo "$SUMMARY"
                echo "Summary of today's news:"
                echo "$SUMMARY_TEXT"
 
