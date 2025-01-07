@@ -62,6 +62,8 @@ jobs:
                echo "$SUMMARY"
                echo "Summary of today's news:"
                echo "$SUMMARY_TEXT"
+           env:
+               OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
          # - name: Upload news data as an artifact
          #   uses: actions/upload-artifact@v2
