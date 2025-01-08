@@ -66,6 +66,10 @@ jobs:
 
          - name: Generate image prompt
            run: |
+               echo "Received descriptions:"
+               echo $ALL_DESCRIPTIONS
+               echo "Received weather:"
+               echo $WEATHER_REPORT
                set -x
                PROMPT=$(curl -s -X POST "https://api.openai.com/v1/chat/completions" \
                   -H "Content-Type: application/json" \
