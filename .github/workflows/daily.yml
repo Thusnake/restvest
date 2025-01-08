@@ -70,8 +70,8 @@ jobs:
                PROMPT=$(curl -s -X POST "https://api.openai.com/v1/chat/completions" \
                   -H "Content-Type: application/json" \
                   -H "Authorization: Bearer $OPENAI_API_KEY" \
-                  -d '{"model": "gpt-4o", "messages": [{"role": "user", "content": "Here is the news report for today: '"$ALL_DESCRIPTIONS"'. Here is the weather report for today: '"$WEATHER_REPORT"'. Using that information, create a text prompt for an image generation model DALL-E 3, so that it creates an image. The image must contain a white RV van with bold black letters on the front of it, forming the words \"Rest & Vest\". The image should be photorealistic, should invoke calmness and tranquility and should incorporate in some way the information you have for today."}]}')
-               PROMPT_TEXT=$(echo $PROMPT | jq -r '.choices[0].message.content')
+                  -d '{"model": "gpt-4o", "messages": [{"role": "user", "content": "Here is the news report for today: '"$ALL_DESCRIPTIONS"'. Here is the weather report for today: '"$WEATHER_REPORT"'. Using that information, create a text prompt for an image generation model DALL-E 3, so that it creates an image. The image must contain a white RV van with bold black letters on the front of it, forming the words \"Rest & Vest\". The image should be photorealistic, should invoke calmness and tranquility and should incorporate in some way the information you have for today. Response should be written on a single line."}]}')
+               PROMPT_TEXT=$(echo $PROMPT | jq -r '.choices[0].message.content' | tail -n 1)
                echo "Prompt for image:"
                echo "$PROMPT_TEXT"
            env:
