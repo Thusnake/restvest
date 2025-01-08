@@ -65,7 +65,7 @@ jobs:
 
          - name: Summarize weather
            run: |
-               WEATHER_JSON=$(curl "http://api.weatherapi.com/v1/current.json?key=$WEATHERAPI_KEY&q=Sofia")
+               WEATHER_JSON=$(curl "http://api.weatherapi.com/v1/forecast.json?key=$WEATHERAPI_KEY&q=Sofia")
                WEATHER_REPORT="Minimum temperature today will be $(echo $WEATHER_JSON | jq '.forecast.forecastday[0].day.mintemp_f') degrees Farenheit.
                Maximum temperature will be $(echo $WEATHER_JSON | jq '.forecast.forecastday[0].day.maxtemp_f') degrees Farenheit.
                Expected winds of up to $(echo $WEATHER_JSON | jq '.forecast.forecastday[0].day.maxwind_mph') MPH.
