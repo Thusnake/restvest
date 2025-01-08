@@ -98,10 +98,10 @@ jobs:
                   "n": 1,
                   "size": "1792x1024"
                }')
-               RESULT_URL=$(echo $RESPONSE | jq '.data[0].url')
-               curl --output image.png $RESULT_URL
                echo "Response from ChatGPT:"
                echo $RESPONSE
+               RESULT_URL=$(echo $RESPONSE | jq '.data[0].url')
+               curl --output image.png $RESULT_URL
            env:
                OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
