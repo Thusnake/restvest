@@ -110,6 +110,7 @@ jobs:
            with:
                sparse-checkout: |
                   rv-of-the-day.webp
+               sparse-checkout-cone-mode: false
          
          - name: Upload van of the day
            run: |
