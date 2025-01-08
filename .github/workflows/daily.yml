@@ -100,7 +100,7 @@ jobs:
                }')
                echo "Response from ChatGPT:"
                echo $RESPONSE
-               RESULT_URL=$(echo $RESPONSE | jq '.data[0].url')
+               RESULT_URL=$(echo $RESPONSE | jq -r '.data[0].url')
                curl --output image.png $RESULT_URL
            env:
                OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
