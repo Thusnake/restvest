@@ -55,7 +55,7 @@ jobs:
                   -H "Authorization: Bearer $OPENAI_API_KEY" \
                   -d '{
                      "model": "gpt-3.5-turbo",
-                     "messages": [{"role": "user", "content": "Imagine you are reporting to a large-language model, which will then have to use that information to generate an image of the day. Please summarize the following Bulgarian news articles from today:\n'"$ALL_DESCRIPTIONS"'"}]
+                     "messages": [{"role": "user", "content": "Imagine you are reporting to a large-language model, which will then have to use that information to generate an image of the day. Please extract the most relevant information regarding the current state of Bulgaria by summarizing the following Bulgarian news articles from today:\n'"$ALL_DESCRIPTIONS"'"}]
                   }')
                SUMMARY_TEXT=$(echo $SUMMARY | jq -r '.choices[0].message.content')
                echo "Summary of today's news:"
