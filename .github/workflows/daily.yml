@@ -66,11 +66,11 @@ jobs:
          - name: Summarize weather
            run: |
                WEATHER_JSON=$(curl "http://api.weatherapi.com/v1/forecast.json?key=$WEATHERAPI_KEY&q=Sofia")
-               WEATHER_REPORT="Minimum temperature today will be $(echo $WEATHER_JSON | jq '.forecast.forecastday[0].day.mintemp_f') degrees Farenheit.
-               Maximum temperature will be $(echo $WEATHER_JSON | jq '.forecast.forecastday[0].day.maxtemp_f') degrees Farenheit.
-               Expected winds of up to $(echo $WEATHER_JSON | jq '.forecast.forecastday[0].day.maxwind_mph') MPH.
+               WEATHER_REPORT="Minimum temperature today will be $(echo $WEATHER_JSON | jq '.forecast.forecastday[0].day.mintemp_c') degrees Celsius.
+               Maximum temperature will be $(echo $WEATHER_JSON | jq '.forecast.forecastday[0].day.maxtemp_c') degrees Celsius.
+               Expected winds of up to $(echo $WEATHER_JSON | jq '.forecast.forecastday[0].day.maxwind_kph') km/h.
                Humidity will be $(echo $WEATHER_JSON | jq '.forecast.forecastday[0].day.avghumidity') percent.
-               Expected visibility of around $(echo $WEATHER_JSON | jq '.forecast.forecastday[0].day.avgvis_miles') miles.
+               Expected visibility of around $(echo $WEATHER_JSON | jq '.forecast.forecastday[0].day.avgvis_km') km.
                Weather condition is $(echo $WEATHER_JSON | jq '.forecast.forecastday[0].day.condition.text')."
                if [[ $(echo $WEATHER_JSON | jq '.forecast.forecastday[0].day.daily_chance_of_rain') != "0" ]]; then
                   WEATHER_REPORT="$WEATHER_REPORT
