@@ -89,6 +89,13 @@ jobs:
                NEWS: ${{ steps.fetch-news.outputs.NEWS }}
                WEATHER: ${{ steps.fetch-weather.outputs.WEATHER }}
 
+         - name: Checkout van of the day from repo
+           uses: actions/checkout@v4
+           with:
+               sparse-checkout: |
+                  rv-of-the-day.webp
+               sparse-checkout-cone-mode: false
+
          - name: Generate images
            run: |
                set -x
@@ -105,13 +112,6 @@ jobs:
                OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
                PROMPT: ${{ steps.generate-prompt.outputs.PROMPT }}
 
-         - name: Checkout van of the day from repo
-           uses: actions/checkout@v4
-           with:
-               sparse-checkout: |
-                  rv-of-the-day.webp
-               sparse-checkout-cone-mode: false
-         
          - name: Upload van of the day
            run: |
                mv $GITHUB_WORKSPACE/image.webp rv-of-the-day.webp
