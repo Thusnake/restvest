@@ -1,0 +1,120 @@
+name: Generate a new daily image pair
+
+on:
+   schedule:
+      - cron: '0 0 * * *'
+   workflow_dispatch: # Allows manual trigger of the action
+
+jobs:
+   fetch-news:
+      runs-on: ubuntu-latest
+      permissions: write-all
+      steps:
+         - name: Checkout repository
+           uses: actions/checkout@v2
+
+         - name: Set up dependencies
+           run: |
+              sudo apt-get update
+              sudo apt-get install -y jq curl webp
+
+         - name: Fetch news data
+           id: fetch-news
+           run: |
+               # Fetch news descriptions and save them to a variable
+               PAGE=""
+               ALL_DESCRIPTIONS=""
+               for i in {0..5}; do
+                  URL="https://newsdata.io/api/1/latest?apikey=$NEWSDATA_API_KEY&country=bg&domain=24chasa,dnevnik,mediapool&category=politics,business"
+                  if [ "$PAGE" != "" ]; then
+                     URL="$URL&page=$PAGE"
+                  fi
+                  RESPONSE=$(curl -s "$URL")
+                  STATUS=$(echo "$RESPONSE" | jq -r '.status')
+                  if [ "$STATUS" != "success" ]; then
+                     echo "Failed to fetch news or invalid response."
+                     exit 1
+                  fi
+                  DESCRIPTIONS=$(echo "$RESPONSE" | jq -r '.results | map(.description) | join("; ")')
+                  ALL_DESCRIPTIONS+="$DESCRIPTIONS; "
+                  PAGE=$(echo "$RESPONSE" | jq -r '.nextPage')
+                  if [ "$PAGE" == "null" ]; then
+                     break
+                  fi
+               done
+               ALL_DESCRIPTIONS=$(echo $ALL_DESCRIPTIONS| sed -e "s/'//g" -e 's/"/\\"/g')
+               echo "Fetched Descriptions:"
+               echo "$ALL_DESCRIPTIONS"
+               echo "NEWS=$ALL_DESCRIPTIONS" >> "$GITHUB_OUTPUT"
+           env:
+              NEWSDATA_API_KEY: ${{ secrets.NEWSDATA_API_KEY }}
+
+         - name: Summarize weather
+           id: fetch-weather
+           run: |
+               WEATHER_JSON=$(curl "http://api.weatherapi.com/v1/forecast.json?key=$WEATHERAPI_KEY&q=Sofia")
+               WEATHER_REPORT="Minimum temperature today will be $(echo $WEATHER_JSON | jq -r '.forecast.forecastday[0].day.mintemp_c') degrees Celsius.; Maximum temperature will be $(echo $WEATHER_JSON | jq -r '.forecast.forecastday[0].day.maxtemp_c') degrees Celsius.; Expected winds of up to $(echo $WEATHER_JSON | jq -r '.forecast.forecastday[0].day.maxwind_kph') km/h.; Humidity will be $(echo $WEATHER_JSON | jq -r '.forecast.forecastday[0].day.avghumidity') percent.; Expected visibility of around $(echo $WEATHER_JSON | jq -r '.forecast.forecastday[0].day.avgvis_km') km.; Weather condition is $(echo $WEATHER_JSON | jq -r '.forecast.forecastday[0].day.condition.text')."
+               if [[ $(echo $WEATHER_JSON | jq -r '.forecast.forecastday[0].day.daily_chance_of_rain') != "0" ]]; then
+                  WEATHER_REPORT="$WEATHER_REPORT; Expected rainfall of around $(echo $WEATHER_JSON | jq -r '.forecast.forecastday[0].day.totalprecip_mm') millimeters.; Chance of rainfall is $(echo $WEATHER_JSON | jq -r '.forecast.forecastday[0].day.daily_chance_of_rain')"
+               fi
+               if [[ $(echo $WEATHER_JSON | jq -r '.forecast.forecastday[0].day.daily_chance_of_snow') != "0" ]]; then
+                  WEATHER_REPORT="$WEATHER_REPORT; Expected snowfall of around $(echo $WEATHER_JSON | jq -r '.forecast.forecastday[0].day.totalsnow_cm') centimeters.; Chance of snowfall is $(echo $WEATHER_JSON | jq -r '.forecast.forecastday[0].day.daily_chance_of_snow')"
+               fi
+               echo "Summary of today's weather:"
+               echo "$WEATHER_REPORT"
+               echo "WEATHER=$WEATHER_REPORT" >> "$GITHUB_OUTPUT"
+           env:
+               WEATHERAPI_KEY: ${{ secrets.WEATHERAPI_KEY }}
+
+         - name: Generate image prompt
+           id: generate-prompt
+           run: |
+               echo "Received descriptions:"
+               echo $NEWS
+               echo "Received weather:"
+               echo $WEATHER
+               PROMPT=$(curl -s -X POST "https://api.openai.com/v1/chat/completions" \
+                  -H "Content-Type: application/json" \
+                  -H "Authorization: Bearer $OPENAI_API_KEY" \
+                  -d '{"model": "gpt-4o", "messages": [{"role": "user", "content": "Here is the news report for today in Bulgarian: '"$NEWS"'. Here is the weather report for today: '"$WEATHER"'. Using both the news and the weather information, create a text prompt for an image generation model DALL-E 3. The image must contain a white RV van with bold black letters on the front of it, forming the words \"Rest & Vest\". The image should be photorealistic, should invoke calmness and tranquility and should incorporate in some way both the news and the weather for today. Response should be written on a single line."}]}')
+               PROMPT_TEXT=$(echo $PROMPT | jq -r '.choices[0].message.content' | tail -n 1 | sed -e "s/'//g" -e 's/"/\\"/g')
+               echo "Prompt for image:"
+               echo "$PROMPT_TEXT"
+               echo "PROMPT=$PROMPT_TEXT" >> "$GITHUB_OUTPUT"
+           env:
+               OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+               NEWS: ${{ steps.fetch-news.outputs.NEWS }}
+               WEATHER: ${{ steps.fetch-weather.outputs.WEATHER }}
+
+         - name: Checkout van of the day from repo
+           uses: actions/checkout@v4
+           with:
+               sparse-checkout: |
+                  rv-of-the-day.webp
+               sparse-checkout-cone-mode: false
+
+         - name: Generate images
+           run: |
+               RESPONSE=$(curl -s -X POST https://api.openai.com/v1/images/generations \
+               -H "Content-Type: application/json" \
+               -H "Authorization: Bearer $OPENAI_API_KEY" \
+               -d '{"model": "dall-e-3", "prompt": "'"$PROMPT"'", "n": 1, "size": "1792x1024"}')
+               echo "Response from ChatGPT:"
+               echo $RESPONSE
+               RESULT_URL=$(echo $RESPONSE | jq -r '.data[0].url')
+               curl --output image.png $RESULT_URL
+               cwebp -q 80 image.png -o $GITHUB_WORKSPACE/image.webp
+           env:
+               OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+               PROMPT: ${{ steps.generate-prompt.outputs.PROMPT }}
+
+         - name: Upload van of the day
+           run: |
+               mv $GITHUB_WORKSPACE/image.webp rv-of-the-day.webp
+               git config --global user.name "github-actions[bot]"
+               git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+               git add rv-of-the-day.webp
+               git commit -m "Update RV of the day via GitHub Actions"
+               git push
+           env:
+               GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
