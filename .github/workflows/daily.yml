@@ -55,15 +55,37 @@ jobs:
                   -H "Authorization: Bearer $OPENAI_API_KEY" \
                   -d '{
                      "model": "gpt-3.5-turbo",
-                     "messages": [{"role": "user", "content": "Please summarize the following Bulgarian news articles:\n'"$ALL_DESCRIPTIONS"'"}]
+                     "messages": [{"role": "user", "content": "Imagine you are reporting to a large-language model, which will then have to use that information to generate an image of the day. Please summarize the following Bulgarian news articles from today:\n'"$ALL_DESCRIPTIONS"'"}]
                   }')
                SUMMARY_TEXT=$(echo $SUMMARY | jq -r '.choices[0].message.content')
-               echo "Full response:"
-               echo "$SUMMARY"
                echo "Summary of today's news:"
                echo "$SUMMARY_TEXT"
            env:
                OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+         - name: Summarize weather
+           run: |
+               WEATHER_JSON=$(curl "http://api.weatherapi.com/v1/current.json?key=$WEATHERAPI_KEY&q=Sofia")
+               WEATHER_REPORT="Minimum temperature today will be $(echo $WEATHER_JSON | jq '.forecast.forecastday[0].day.mintemp_f') degrees Farenheit.
+               Maximum temperature will be $(echo $WEATHER_JSON | jq '.forecast.forecastday[0].day.maxtemp_f') degrees Farenheit.
+               Expected winds of up to $(echo $WEATHER_JSON | jq '.forecast.forecastday[0].day.maxwind_mph') MPH.
+               Humidity will be $(echo $WEATHER_JSON | jq '.forecast.forecastday[0].day.avghumidity') percent.
+               Expected visibility of around $(echo $WEATHER_JSON | jq '.forecast.forecastday[0].day.avgvis_miles') miles.
+               Weather condition is $(echo $WEATHER_JSON | jq '.forecast.forecastday[0].day.condition.text')."
+               if [[ $(echo $WEATHER_JSON | jq '.forecast.forecastday[0].day.daily_chance_of_rain') != "0" ]]; then
+                  WEATHER_REPORT="$WEATHER_REPORT
+                  Expected rainfall of around $(echo $WEATHER_JSON | jq '.forecast.forecastday[0].day.totalprecip_mm') millimeters.
+                  Chance of rainfall is $(echo $WEATHER_JSON | jq '.forecast.forecastday[0].day.daily_chance_of_rain')"
+               fi
+               if [[ $(echo $WEATHER_JSON | jq '.forecast.forecastday[0].day.daily_chance_of_snow') != "0" ]]; then
+                  WEATHER_REPORT="$WEATHER_REPORT
+                  Expected snowfall of around $(echo $WEATHER_JSON | jq '.forecast.forecastday[0].day.totalsnow_cm') centimeters.
+                  Chance of snowfall is $(echo $WEATHER_JSON | jq '.forecast.forecastday[0].day.daily_chance_of_snow')"
+               fi
+               echo "Summary of today's weather:"
+               echo "$WEATHER_REPORT"
+           env:
+               WEATHERAPI_KEY: ${{ secrets.WEATHERAPI_KEY }}
 
          # - name: Upload news data as an artifact
          #   uses: actions/upload-artifact@v2
