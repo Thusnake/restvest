@@ -18,7 +18,7 @@ jobs:
          - name: Set up dependencies
            run: |
               sudo apt-get update
-              sudo apt-get install -y jq curl
+              sudo apt-get install -y jq curl webp
 
          - name: Fetch news data
            id: fetch-news
@@ -100,12 +100,24 @@ jobs:
                echo $RESPONSE
                RESULT_URL=$(echo $RESPONSE | jq -r '.data[0].url')
                curl --output image.png $RESULT_URL
+               cwebp -q 80 image.png -o image.webp
            env:
                OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
                PROMPT: ${{ steps.generate-prompt.outputs.PROMPT }}
 
-         # - name: Upload news data as an artifact
-         #   uses: actions/upload-artifact@v2
-         #   with:
-         #      name: btv_novinite_news
-         #      path: all_btv_novinite_articles.txt
+         - name: Checkout van of the day from repo
+           uses: actions/checkout@v4
+           with:
+               sparse-checkout: |
+                  rv-of-the-day.webp
+         
+         - name: Upload van of the day
+           run: |
+               mv image.webp rv-of-the-day.webp
+               git config --global user.name "github-actions[bot]"
+               git config --global user.email "github-actions[bot]@users.noreply.github.com"
+               git add rv-of-the-day.webp
+               git commit -m "Update RV of the day via GitHub Actions"
+               git push
+           env:
+               GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
