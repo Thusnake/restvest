@@ -36,13 +36,14 @@ jobs:
                      echo "Failed to fetch news or invalid response."
                      exit 1
                   fi
-                  DESCRIPTIONS=$(echo "$RESPONSE" | jq -r '.results[].description')
-                  ALL_DESCRIPTIONS+="$DESCRIPTIONS\n\n"
+                  DESCRIPTIONS=$(echo "$RESPONSE" | jq -r '.results | map(.description) | join("; ")')
+                  ALL_DESCRIPTIONS+="$DESCRIPTIONS; "
                   PAGE=$(echo "$RESPONSE" | jq -r '.nextPage')
                   if [ "$PAGE" == "null" ]; then
                      break
                   fi
                done
+               ALL_DESCRIPTIONS=$(echo $ALL_DESCRIPTIONS| sed -e "s/'/'\\\\''/g" -e 's/"/\\"/g')
                echo "Fetched Descriptions:"
                echo "$ALL_DESCRIPTIONS"
            env:
@@ -55,7 +56,7 @@ jobs:
                   -H "Authorization: Bearer $OPENAI_API_KEY" \
                   -d '{
                      "model": "gpt-3.5-turbo",
-                     "messages": [{"role": "user", "content": "Imagine you are reporting to a large-language model, which will then have to use that information to generate an image of the day. Please extract the most relevant information regarding the current state of Bulgaria by summarizing the following Bulgarian news articles from today:\n'"$ALL_DESCRIPTIONS"'"}]
+                     "messages": [{"role": "user", "content": "Imagine you are reporting to a large-language model, which will then have to use that information to generate an image of the day. Please extract the most relevant information by summarizing the following news, delimited with a semicolon:'"$ALL_DESCRIPTIONS"'"}]
                   }')
                SUMMARY_TEXT=$(echo $SUMMARY | jq -r '.choices[0].message.content')
                echo "Summary of today's news:"
