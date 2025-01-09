@@ -117,4 +117,4 @@ jobs:
                git commit -m "Update RV of the day via GitHub Actions"
                git push
            env:
-               GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+               GITHUB_TOKEN: ${{ secrets.RV_OF_THE_DAY_ACCESS_TOKEN }}
