@@ -110,10 +110,6 @@ jobs:
 
          - name: Upload van of the day
            run: |
-               mkdir -p ~/.ssh
-               echo "${{ secrets.DEPLOY_KEY }}" > ~/.ssh/id_rsa
-               chmod 600 ~/.ssh/id_rsa
-               ssh-keyscan github.com >> ~/.ssh/known_hosts
                git pull
                mv $GITHUB_WORKSPACE/image.webp rv-of-the-day.webp
                git config --global user.name "github-actions[bot]"
@@ -123,4 +119,3 @@ jobs:
                git push
            env:
                GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-               DEPLOY_KEY: ${{ secrets.RV_OF_THE_DAY_DEPLOY_KEY }}
