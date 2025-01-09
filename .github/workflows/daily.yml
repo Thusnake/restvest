@@ -114,6 +114,7 @@ jobs:
                mv $GITHUB_WORKSPACE/image.webp rv-of-the-day.webp
                git config --global user.name "github-actions[bot]"
                git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+               git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/Thusnake/restvest.git
                git add rv-of-the-day.webp
                git commit -m "Update RV of the day via GitHub Actions"
                git push
