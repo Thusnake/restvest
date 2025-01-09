@@ -110,13 +110,17 @@ jobs:
 
          - name: Upload van of the day
            run: |
+               mkdir -p ~/.ssh
+               echo "${{ secrets.DEPLOY_KEY }}" > ~/.ssh/id_rsa
+               chmod 600 ~/.ssh/id_rsa
+               ssh-keyscan github.com >> ~/.ssh/known_hosts
                git pull
                mv $GITHUB_WORKSPACE/image.webp rv-of-the-day.webp
                git config --global user.name "github-actions[bot]"
                git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-               git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/Thusnake/restvest.git
                git add rv-of-the-day.webp
                git commit -m "Update RV of the day via GitHub Actions"
                git push
            env:
-               GITHUB_TOKEN: ${{ secrets.RV_OF_THE_DAY_ACCESS_TOKEN }}
+               GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+               DEPLOY_KEY: ${{ secrets.RV_OF_THE_DAY_DEPLOY_KEY }}
