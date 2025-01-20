@@ -22,32 +22,16 @@ jobs:
            id: fetch-news
            run: |
                # Fetch news descriptions and save them to a variable
-               PAGE=""
-               ALL_DESCRIPTIONS=""
-               for i in {0..5}; do
-                  URL="https://newsdata.io/api/1/latest?apikey=$NEWSDATA_API_KEY&country=bg&domain=24chasa,dnevnik,mediapool&category=politics,business"
-                  if [ "$PAGE" != "" ]; then
-                     URL="$URL&page=$PAGE"
-                  fi
-                  RESPONSE=$(curl -s "$URL")
-                  STATUS=$(echo "$RESPONSE" | jq -r '.status')
-                  if [ "$STATUS" != "success" ]; then
-                     echo "Failed to fetch news or invalid response."
-                     exit 1
-                  fi
-                  DESCRIPTIONS=$(echo "$RESPONSE" | jq -r '.results | map(.description) | join("; ")')
-                  ALL_DESCRIPTIONS+="$DESCRIPTIONS; "
-                  PAGE=$(echo "$RESPONSE" | jq -r '.nextPage')
-                  if [ "$PAGE" == "null" ]; then
-                     break
-                  fi
-               done
-               ALL_DESCRIPTIONS=$(echo $ALL_DESCRIPTIONS| sed -e "s/'//g" -e 's/"/\\"/g')
+               URL="https://api.worldnewsapi.com/top-news?api-key=$WORLDNEWS_API_KEY&source-country=bg&language=bg"
+               RESPONSE=$(curl -s "$URL")
+               RESPONSE=$(echo $RESPONSE | tr '\n' ';' | sed 's/;$//g')
+               DESCRIPTIONS=$(echo $RESPONSE | jq -r '.top_news[].news | sort_by(.text | length) | last | .text' | tr '\n' ';')
+               DESCRIPTIONS=$(echo $DESCRIPTIONS | sed -e "s/'//g" -e 's/"/\\"/g')
                echo "Fetched Descriptions:"
-               echo "$ALL_DESCRIPTIONS"
-               echo "NEWS=$ALL_DESCRIPTIONS" >> "$GITHUB_OUTPUT"
+               echo "$DESCRIPTIONS"
+               echo "NEWS=$DESCRIPTIONS" >> "$GITHUB_OUTPUT"
            env:
-              NEWSDATA_API_KEY: ${{ secrets.NEWSDATA_API_KEY }}
+              WORLDNEWS_API_KEY: ${{ secrets.WORLDNEWS_API_KEY }}
 
          - name: Summarize weather
            id: fetch-weather
