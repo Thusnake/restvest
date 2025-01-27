@@ -20,16 +20,24 @@ jobs:
 
          - name: Fetch news data
            id: fetch-news
-           run: |
-               # Fetch news descriptions and save them to a variable
-               URL="https://api.worldnewsapi.com/top-news?api-key=$WORLDNEWS_API_KEY&source-country=bg&language=bg"
-               RESPONSE=$(curl -s "$URL")
-               RESPONSE=$(echo $RESPONSE | tr '\n' ';' | sed 's/;$//g')
-               DESCRIPTIONS=$(echo $RESPONSE | jq -r '.top_news[].news | sort_by(.text | length) | last | .text' | tr '\n' ';')
-               DESCRIPTIONS=$(echo $DESCRIPTIONS | sed -e "s/'//g" -e 's/"/\\"/g')
-               echo "Fetched Descriptions:"
-               echo "$DESCRIPTIONS"
-               echo "NEWS=$DESCRIPTIONS" >> "$GITHUB_OUTPUT"
+           uses: nick-fields/retry@v3
+           with:
+               timeout_minutes: 1
+               max_attempts: 60
+               command: |
+                     # Fetch news descriptions and save them to a variable
+                     URL="https://api.worldnewsapi.com/top-news?api-key=$WORLDNEWS_API_KEY&source-country=bg&language=bg"
+                     RESPONSE=$(curl -s "$URL")
+                     RESPONSE=$(echo $RESPONSE | tr '\n' ';' | sed 's/;$//g')
+                     DESCRIPTIONS=$(echo $RESPONSE | jq -r '.top_news[].news | sort_by(.text | length) | last | .text' | tr '\n' ';')
+                     DESCRIPTIONS=$(echo $DESCRIPTIONS | sed -e "s/'//g" -e 's/"/\\"/g')
+                     if [ $(echo $ASD | wc -w) -eq 0 ]; then
+                        echo "Failed to fetch news or invalid response."
+                        exit 1
+                     fi
+                     echo "Fetched Descriptions:"
+                     echo "$DESCRIPTIONS"
+                     echo "NEWS=$DESCRIPTIONS" >> "$GITHUB_OUTPUT"
            env:
               WORLDNEWS_API_KEY: ${{ secrets.WORLDNEWS_API_KEY }}
 
