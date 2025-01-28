@@ -23,7 +23,7 @@ jobs:
            uses: nick-fields/retry@v3
            with:
                timeout_minutes: 1
-               max_attempts: 60
+               max_attempts: 20
                command: |
                      # Fetch news descriptions and save them to a variable
                      URL="https://api.worldnewsapi.com/top-news?api-key=$WORLDNEWS_API_KEY&source-country=bg&language=bg"
