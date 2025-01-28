@@ -31,7 +31,7 @@ jobs:
                      RESPONSE=$(echo $RESPONSE | tr '\n' ';' | sed 's/;$//g')
                      DESCRIPTIONS=$(echo $RESPONSE | jq -r '.top_news[].news | sort_by(.text | length) | last | .text' | tr '\n' ';')
                      DESCRIPTIONS=$(echo $DESCRIPTIONS | sed -e "s/'//g" -e 's/"/\\"/g')
-                     if [ $(echo $ASD | wc -w) -eq 0 ]; then
+                     if [ $(echo $DESCRIPTIONS | wc -w) -eq 0 ]; then
                         echo "Failed to fetch news or invalid response."
                         exit 1
                      fi
