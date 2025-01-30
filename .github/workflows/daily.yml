@@ -31,13 +31,13 @@ jobs:
                      RESPONSE=$(echo $RESPONSE | tr '\n' ';' | sed 's/;$//g')
                      DESCRIPTIONS=$(echo $RESPONSE | jq -r '.top_news[].news | sort_by(.text | length) | last | .text' | tr '\n' ';')
                      DESCRIPTIONS=$(echo $DESCRIPTIONS | sed -e "s/'//g" -e 's/"/\\"/g')
-                     URL="https://api.worldnewsapi.com/top-news?api-key=$WORLDNEWS_API_KEY&source-country=bg&language=bg&date=$(date -v -1d +%Y-%m-%d)"
+                     URL="https://api.worldnewsapi.com/top-news?api-key=$WORLDNEWS_API_KEY&source-country=bg&language=bg&date=$(date -d 'yesterday' +%Y-%m-%d)"
                      RESPONSE=$(curl -s "$URL")
                      RESPONSE=$(echo $RESPONSE | tr '\n' ';' | sed 's/;$//g')
                      YEST_DESCRIPTIONS=$(echo $RESPONSE | jq -r '.top_news[].news | sort_by(.text | length) | last | .text' | tr '\n' ';')
                      YEST_DESCRIPTIONS=$(echo $YEST_DESCRIPTIONS | sed -e "s/'//g" -e 's/"/\\"/g')
                      DESCRIPTIONS="$DESCRIPTIONS;$YEST_DESCRIPTIONS"
-                     if [ $(echo $DESCRIPTIONS | wc -w) -eq 0 ]; then
+                     if [ $(echo $DESCRIPTIONS | wc -w) -le 1 ]; then
                         echo "Failed to fetch news or invalid response."
                         exit 1
                      fi
