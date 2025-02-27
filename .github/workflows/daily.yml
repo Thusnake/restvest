@@ -29,12 +29,12 @@ jobs:
                      URL="https://api.worldnewsapi.com/top-news?api-key=$WORLDNEWS_API_KEY&source-country=bg&language=bg"
                      RESPONSE=$(curl -s "$URL")
                      RESPONSE=$(echo $RESPONSE | iconv -f utf-8 -t utf-8 -c | tr '\n' ';' | sed 's/;$//g')
-                     DESCRIPTIONS=$(echo $RESPONSE | jq -r '.top_news[].news | sort_by(.text | length) | last | .text' | head -n 10 | tr '\n' ';')
+                     DESCRIPTIONS=$(echo $RESPONSE | jq -r '.top_news[].news | sort_by(.text | length) | last | .text | gsub("[\\n\\t]"; "")' | head -n 10 | tr '\n' ';')
                      DESCRIPTIONS=$(echo $DESCRIPTIONS | sed -e "s/'//g" -e 's/"/\\"/g')
                      URL="https://api.worldnewsapi.com/top-news?api-key=$WORLDNEWS_API_KEY&source-country=bg&language=bg&date=$(date -d 'yesterday' +%Y-%m-%d)"
                      RESPONSE=$(curl -s "$URL")
                      RESPONSE=$(echo $RESPONSE | iconv -f utf-8 -t utf-8 -c | tr '\n' ';' | sed 's/;$//g')
-                     YEST_DESCRIPTIONS=$(echo $RESPONSE | jq -r '.top_news[].news | sort_by(.text | length) | last | .text' | head -n 10 | tr '\n' ';')
+                     YEST_DESCRIPTIONS=$(echo $RESPONSE | jq -r '.top_news[].news | sort_by(.text | length) | last | .text | gsub("[\\n\\t]"; "")' | head -n 10 | tr '\n' ';')
                      YEST_DESCRIPTIONS=$(echo $YEST_DESCRIPTIONS | sed -e "s/'//g" -e 's/"/\\"/g')
                      DESCRIPTIONS="$DESCRIPTIONS;$YEST_DESCRIPTIONS"
                      if [ $(echo $DESCRIPTIONS | wc -w) -le 1 ]; then
@@ -110,9 +110,11 @@ jobs:
            run: |
                git pull
                mv $GITHUB_WORKSPACE/image.webp rv-of-the-day.webp
+               echo $PROMPT > description-of-the-day.txt
                git config --global user.name "github-actions[bot]"
                git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
                git add rv-of-the-day.webp
+               git add description-of-the-day.txt
                git commit -m "Update RV of the day via GitHub Actions"
                git push
            env:
