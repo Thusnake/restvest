@@ -9,6 +9,8 @@
         gtag('js', new Date());
         gtag('config', 'G-60JLQKGCRH');
     </script>
+    <script src="https://unpkg.com/fireworks-js@2.x/dist/index.umd.js"></script>
+
     <style>
         body {
             margin: 0;
@@ -40,6 +42,15 @@
             background-size: contain;
         }
 
+        .fireworks {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
         .flipdown {
             margin-left: auto;
             margin-right: auto;
@@ -51,9 +62,40 @@
 <body>
     <div class="backdrop"></div>
     <div class="image"></div>
+    <div class="fireworks"></div>
     <div id="flipdown" class="flipdown"></div>
     <script>
-        new FlipDown(1741989600, 'flipdown').start()
+        const counter = new FlipDown(1741989600, 'flipdown').start();
+        counter.ifEnded(() => {
+            const container = document.querySelector('.fireworks');
+            const fireworks = new Fireworks.default(container, {
+                lineWidth: {
+                    min: 2.5,
+                    max: 5,
+                },
+                decay: {
+                    min: 0.001,
+                    max: 0.01,
+                },
+                flickering: 0,
+                intensity: 13,
+                delay: {
+                    min: 100,
+                    max: 100,
+                },
+                acceleration: 1.05,
+                friction: 0.95,
+                gravity: 1,
+                explosion: 6,
+                brightness: {
+                    min: 20,
+                    max: 80,
+                },
+                particles: 180,
+                traceSpeed: 6,
+            });
+            fireworks.start();
+        })
     </script>
 </body>
 </html>
