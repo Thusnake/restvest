@@ -29,12 +29,12 @@ jobs:
                      URL="https://api.worldnewsapi.com/top-news?api-key=$WORLDNEWS_API_KEY&source-country=bg&language=bg"
                      RESPONSE=$(curl -s "$URL")
                      RESPONSE=$(echo $RESPONSE | iconv -f utf-8 -t utf-8 -c | tr '\n' ';' | sed 's/;$//g')
-                     DESCRIPTIONS=$(echo $RESPONSE | jq -r '[.top_news[].news | sort_by(.text | length) | last | .text | gsub("[\\n\\t]"; "")] | .[:10] | join(";")')
+                     DESCRIPTIONS=$(echo $RESPONSE | jq -r '[.top_news[].news | sort_by(.text | length) | last | .text | gsub("[\\n\\t]"; "")] | .[:6] | join(";")')
                      DESCRIPTIONS=$(echo $DESCRIPTIONS | sed -e "s/'//g" -e 's/"/\\"/g')
                      URL="https://api.worldnewsapi.com/top-news?api-key=$WORLDNEWS_API_KEY&source-country=bg&language=bg&date=$(date -d 'yesterday' +%Y-%m-%d)"
                      RESPONSE=$(curl -s "$URL")
                      RESPONSE=$(echo $RESPONSE | iconv -f utf-8 -t utf-8 -c | tr '\n' ';' | sed 's/;$//g')
-                     YEST_DESCRIPTIONS=$(echo $RESPONSE | jq -r '[.top_news[].news | sort_by(.text | length) | last | .text | gsub("[\\n\\t]"; "")] | .[:10] | join(";")')
+                     YEST_DESCRIPTIONS=$(echo $RESPONSE | jq -r '[.top_news[].news | sort_by(.text | length) | last | .text | gsub("[\\n\\t]"; "")] | .[:6] | join(";")')
                      YEST_DESCRIPTIONS=$(echo $YEST_DESCRIPTIONS | sed -e "s/'//g" -e 's/"/\\"/g')
                      DESCRIPTIONS="$DESCRIPTIONS;$YEST_DESCRIPTIONS"
                      if [ $(echo $DESCRIPTIONS | wc -w) -le 1 ]; then
@@ -74,7 +74,7 @@ jobs:
                PROMPT=$(curl -s -X POST "https://api.openai.com/v1/chat/completions" \
                   -H "Content-Type: application/json" \
                   -H "Authorization: Bearer $OPENAI_API_KEY" \
-                  -d '{"model": "gpt-4.1", "messages": [{"role": "user", "content": "Here is the news report for today in Bulgarian: '"$NEWS"'. Here is the weather report for today: '"$WEATHER"'. Using both the news and the weather information, create a text prompt for an image generation model. The image must contain a white RV van, which MUST have bold black letters on the front of it, forming the words \"Rest & Vest\". The plate number MUST spell out \"BUCARKA1\". The image should be photorealistic, should invoke calmness and tranquility and should incorporate in some way both the news and the weather for today. Do not use any specific numbers, only descriptions. Incorporate specific elements from the news into the image description. Do not be vague with your prompt. Response should be written on a single line."}]}')
+                  -d '{"model": "gpt-4.1", "messages": [{"role": "user", "content": "Here is the news report for today in Bulgarian: '"$NEWS"'. Here is the weather report for today: '"$WEATHER"'. Using both the news and the weather information, create a text prompt for an image generation model. The image must contain a white RV van, which MUST have bold black letters on the front of it, forming the words \"Rest & Vest\". The plate number MUST spell out \"BUCARKA1\". The image MUST contain a black panther as a main actor. The image should be photorealistic and should incorporate in some way both the news and the weather for today. Do not use any specific numbers or text from the news, only descriptions. The image must be an allegory of the news. Incorporate specific elements from the news into the image description. Do not be vague with your prompt. Response should be written on a single line."}]}')
                PROMPT_TEXT=$(echo $PROMPT | jq -r '.choices[0].message.content' | tail -n 1 | sed -e "s/'//g" -e 's/"/\\"/g')
                if [ $PROMPT_TEXT == "null" ]; then
                   echo "Failed to generate prompt:"
