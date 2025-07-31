@@ -23,20 +23,30 @@ jobs:
            uses: nick-fields/retry@v3
            with:
                timeout_minutes: 1
-               max_attempts: 20
+               max_attempts: 3
                command: |
                      # Fetch news descriptions and save them to a variable
-                     URL="https://api.worldnewsapi.com/top-news?api-key=$WORLDNEWS_API_KEY&source-country=bg&language=bg"
-                     RESPONSE=$(curl -s "$URL")
-                     RESPONSE=$(echo $RESPONSE | iconv -f utf-8 -t utf-8 -c | tr '\n' ';' | sed 's/;$//g')
-                     DESCRIPTIONS=$(echo $RESPONSE | jq -r '[.top_news[].news | sort_by(.text | length) | last | .text | gsub("[\\n\\t]"; "")] | .[:6] | join(";")')
-                     DESCRIPTIONS=$(echo $DESCRIPTIONS | sed -e "s/'//g" -e 's/"/\\"/g')
-                     URL="https://api.worldnewsapi.com/top-news?api-key=$WORLDNEWS_API_KEY&source-country=bg&language=bg&date=$(date -d 'yesterday' +%Y-%m-%d)"
-                     RESPONSE=$(curl -s "$URL")
-                     RESPONSE=$(echo $RESPONSE | iconv -f utf-8 -t utf-8 -c | tr '\n' ';' | sed 's/;$//g')
-                     YEST_DESCRIPTIONS=$(echo $RESPONSE | jq -r '[.top_news[].news | sort_by(.text | length) | last | .text | gsub("[\\n\\t]"; "")] | .[:6] | join(";")')
-                     YEST_DESCRIPTIONS=$(echo $YEST_DESCRIPTIONS | sed -e "s/'//g" -e 's/"/\\"/g')
-                     DESCRIPTIONS="$DESCRIPTIONS;$YEST_DESCRIPTIONS"
+                     RESPONSE=$(curl https://api.x.ai/v1/chat/completions \
+                       -H "Content-Type: application/json" \
+                       -H "Authorization: Bearer $GROK_API_KEY" \
+                       -d '{
+                           "messages": [
+                              {
+                              
+                                 "role": "user",
+                                 "content": "Provide me with a description of the top 5 news stories in Bulgaria today. Go into small to moderate vivid detail, depending on the complexity of the story. Format the message on a single line without markdown."
+                              }
+                           ],
+                           "search_parameters": {
+                              "mode": "on",
+                              "from_date": "'"$(date -d 'yesterday' +%Y-%m-%d)"'",
+                              "to_date": "'"$(date -d 'today' +%Y-%m-%d)"'",
+                              "sources": [{ "type": "news", "country": "BG" }]
+                           },
+                           "model": "grok-4"
+                       }')
+                     echo $RESPONSE
+                     DESCRIPTIONS=$(echo $RESPONSE | jq -r '.choices[0].message.content')
                      if [ $(echo $DESCRIPTIONS | wc -w) -le 1 ]; then
                         echo "Failed to fetch news or invalid response."
                         exit 1
@@ -45,7 +55,7 @@ jobs:
                      echo "$DESCRIPTIONS"
                      echo "NEWS=$DESCRIPTIONS" >> "$GITHUB_OUTPUT"
            env:
-              WORLDNEWS_API_KEY: ${{ secrets.WORLDNEWS_API_KEY }}
+              GROK_API_KEY: ${{ secrets.GROK_API_KEY }}
 
          - name: Summarize weather
            id: fetch-weather
