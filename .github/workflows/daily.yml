@@ -34,7 +34,7 @@ jobs:
                               {
                               
                                  "role": "user",
-                                 "content": "Provide me with a description of the top 5 news stories in Bulgaria today. Go into small to moderate vivid detail, depending on the complexity of the story. Format the message on a single line without markdown."
+                                 "content": "Дай ми описание на петте най-важни новини от България днес. Опиши накратко или в умерен детайл, в зависимост от новината. Форматирай отговора си на един ред, без да използваш какъвто и да е markdown."
                               }
                            ],
                            "search_parameters": {
