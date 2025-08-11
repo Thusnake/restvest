@@ -46,7 +46,7 @@ jobs:
                            "model": "grok-4"
                        }')
                      echo $RESPONSE
-                     DESCRIPTIONS=$(echo $RESPONSE | jq -r '.choices[0].message.content')
+                     DESCRIPTIONS=$(echo $RESPONSE | jq -r '.choices[0].message.content' | sed -e "s/'//g" -e 's/"/\\"/g')
                      if [ $(echo $DESCRIPTIONS | wc -w) -le 1 ]; then
                         echo "Failed to fetch news or invalid response."
                         exit 1
