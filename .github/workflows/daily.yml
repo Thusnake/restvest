@@ -22,7 +22,7 @@ jobs:
            id: fetch-news
            uses: nick-fields/retry@v3
            with:
-               timeout_minutes: 1
+               timeout_minutes: 5
                max_attempts: 3
                command: |
                      # Fetch news descriptions and save them to a variable
@@ -45,7 +45,7 @@ jobs:
                            "model": "grok-4"
                        }')
                      echo $RESPONSE
-                     DESCRIPTIONS=$(echo $RESPONSE | jq -r '.choices[0].message.content' | sed -e "s/'//g" -e 's/"/\\"/g')
+                     DESCRIPTIONS=$(echo $RESPONSE | jq -r '.output[] | [select(.type == "message" and .status == "completed")][0] | .content[] | [select(.type == "output_text")][0].text' | sed -e "s/'//g" -e 's/"/\\"/g')
                      if [ $(echo $DESCRIPTIONS | wc -w) -le 1 ]; then
                         echo "Failed to fetch news or invalid response."
                         exit 1
