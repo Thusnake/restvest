@@ -45,7 +45,7 @@ jobs:
                            "model": "grok-4"
                        }')
                      echo $RESPONSE
-                     DESCRIPTIONS=$(echo $RESPONSE | jq -r '.output[] | [select(.type == "message" and .status == "completed")][0] | .content[] | [select(.type == "output_text")][0].text' | sed -e "s/'//g" -e 's/"/\\"/g')
+                     DESCRIPTIONS=$(echo $RESPONSE | jq -r '.output | map(select(.type == "message" and .status == "completed"))[0] | .content | map(select(.type == "output_text"))[0].text' | sed -e "s/'//g" -e 's/"/\\"/g')
                      if [ $(echo $DESCRIPTIONS | wc -w) -le 1 ]; then
                         echo "Failed to fetch news or invalid response."
                         exit 1
