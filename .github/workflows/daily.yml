@@ -26,11 +26,11 @@ jobs:
                max_attempts: 3
                command: |
                      # Fetch news descriptions and save them to a variable
-                     RESPONSE=$(curl https://api.x.ai/v1/chat/completions \
+                     RESPONSE=$(curl https://api.x.ai/v1/responses \
                        -H "Content-Type: application/json" \
                        -H "Authorization: Bearer $GROK_API_KEY" \
                        -d '{
-                           "messages": [
+                           "input": [
                               {
                               
                                  "role": "user",
