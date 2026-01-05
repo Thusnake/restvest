@@ -113,7 +113,8 @@ jobs:
                -d '{"contents": [{ "parts": [{"text": "'"$PROMPT"'"}]}], "generationConfig": {"imageConfig": {"aspectRatio": "3:2", "imageSize": "2K"}, "responseModalities": ["Image"]}}')
                echo "Response from Gemini:"
                echo $RESPONSE
-               echo $RESPONSE | jq -r '.candidates[0].content.parts[0].inline_data.data' | base64 --decode | cwebp -q 80 -o $GITHUB_WORKSPACE/image.webp -- -
+               echo $RESPONSE | jq -r '.candidates[0].content.parts[0].inline_data.data' | base64 --decode > $GITHUB_WORKSPACE/image
+               cwebp -q 80 $GITHUB_WORKSPACE/image -o $GITHUB_WORKSPACE/image.webp
            env:
                GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
                PROMPT: ${{ steps.generate-prompt.outputs.PROMPT }}
