@@ -16,7 +16,7 @@ jobs:
          - name: Set up dependencies
            run: |
               sudo apt-get update
-              sudo apt-get install -y jq curl webp
+              sudo apt-get install -y jq curl webp magick
 
          - name: Fetch news data
            id: fetch-news
@@ -113,7 +113,7 @@ jobs:
                -d '{"contents": [{ "parts": [{"text": "'"$PROMPT"'"}]}], "generationConfig": {"imageConfig": {"aspectRatio": "3:2", "imageSize": "2K", "imageOutputOptions": {"mimeType": "image/webp"}}, "responseModalities": ["Image"]}}')
                echo "Response from Gemini:"
                echo $RESPONSE
-               echo $RESPONSE | jq -r '.candidates[0].content.parts[0].inline_data.data' | base64 --decode > $GITHUB_WORKSPACE/image.webp
+               echo $RESPONSE | jq -r '.candidates[0].content.parts[0].inline_data.data' | base64 --decode | magick - -quality 85 $GITHUB_WORKSPACE/image.webp
            env:
                GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
                PROMPT: ${{ steps.generate-prompt.outputs.PROMPT }}
