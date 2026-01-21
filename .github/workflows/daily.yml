@@ -90,6 +90,7 @@ jobs:
                   echo $PROMPT
                   exit 1
                fi
+               PROMPT_TEXT="$PROMPT_TEXT The cover should NOT contain the logo or title of the publisher and it should NOT contain title text for todays issue, just the image."
                echo "Prompt for image:"
                echo "$PROMPT_TEXT"
                echo "PROMPT=$PROMPT_TEXT" >> "$GITHUB_OUTPUT"
