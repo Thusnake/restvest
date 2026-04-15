@@ -108,7 +108,7 @@ jobs:
 
          - name: Generate images
            run: |
-               RESPONSE=$(curl -s -X POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image-preview:generateContent \
+               RESPONSE=$(curl -s -X POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent \
                -H "Content-Type: application/json" \
                -H "x-goog-api-key: $GEMINI_API_KEY" \
                -d '{"contents": [{ "parts": [{"text": "'"$PROMPT"'"}]}], "generationConfig": {"imageConfig": {"aspectRatio": "3:2", "imageSize": "2K"}, "responseModalities": ["Image"]}}')
