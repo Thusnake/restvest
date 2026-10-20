@@ -9,9 +9,12 @@ jobs:
    fetch-news:
       runs-on: ubuntu-latest
       permissions: write-all
+      defaults:
+         run:
+            shell: bash
       steps:
          - name: Checkout repository
-           uses: actions/checkout@v2
+           uses: actions/checkout@v4
 
          - name: Set up dependencies
            run: |
@@ -25,75 +28,82 @@ jobs:
                timeout_minutes: 5
                max_attempts: 3
                command: |
-                     # Fetch news descriptions and save them to a variable
-                     RESPONSE=$(curl https://api.x.ai/v1/responses \
-                       -H "Content-Type: application/json" \
-                       -H "Authorization: Bearer $GROK_API_KEY" \
-                       -d '{
-                           "input": [
-                              {
-                              
-                                 "role": "user",
-                                 "content": "Моля те опиши ми най-важната, въздействаща, провокираща и интересна новина в България от последния ден. Нещо, с което ще запомним този конкретен ден и което можем да използваме за снимка на деня ако правихме вестник или забавно новинарско списание. В описанието си наблегни на визуалните елементи, за да можем по-добре да подготвим изображението. Форматирай отговора си на един ред без да използваш какъвто и да е markdown."
-                              }
-                           ],
-                           "tools": [
-                              {
-                                 "type": "web_search"
-                              }
-                           ],
-                           "model": "grok-4"
-                       }')
-                     echo $RESPONSE
-                     DESCRIPTIONS=$(echo $RESPONSE | jq -r '.output | map(select(.type == "message" and .status == "completed"))[0] | .content | map(select(.type == "output_text"))[0].text' | sed -e "s/'//g" -e 's/"/\\"/g')
-                     if [ $(echo $DESCRIPTIONS | wc -w) -le 1 ]; then
-                        echo "Failed to fetch news or invalid response."
-                        exit 1
-                     fi
-                     echo "Fetched Descriptions:"
-                     echo "$DESCRIPTIONS"
-                     echo "NEWS=$DESCRIPTIONS" >> "$GITHUB_OUTPUT"
+                     set -euo pipefail
+                     # Pin the documented Grok 4 successor instead of relying on alias pricing.
+                     # https://docs.x.ai/developers/migration/may-15-retirement
+                     REQUEST=$(jq -n --arg news 'Моля те опиши ми най-важната, въздействаща, провокираща и интересна новина в България от последния ден. Нещо, с което ще запомним този конкретен ден и което можем да използваме за снимка на деня ако правихме вестник или забавно новинарско списание. В описанието си наблегни на визуалните елементи, за да можем по-добре да подготвим изображението. Форматирай отговора си на един ред без да използваш какъвто и да е markdown.' '{
+                        model: "grok-4.3", reasoning: {effort: "low"},
+                        input: [{role: "user", content: $news}],
+                        tools: [{type: "web_search"}], max_tool_calls: 5,
+                        max_output_tokens: 2048
+                     }')
+                     RESPONSE=$(curl --fail --silent --show-error --connect-timeout 20 --max-time 240 \
+                        https://api.x.ai/v1/responses \
+                        -H "Content-Type: application/json" \
+                        -H "Authorization: Bearer $GROK_API_KEY" \
+                        --data-binary "$REQUEST")
+                     jq '{model, status, incomplete_details, usage}' <<< "$RESPONSE"
+                     jq -e '.error == null and .status == "completed" and .incomplete_details == null
+                        and ([.output[]? | select(.type == "message")] | length > 0
+                           and all(.[]; .status == "completed"))' <<< "$RESPONSE" > /dev/null
+                     DESCRIPTIONS=$(jq -er '[.output[]? | select(.type == "message" and .role == "assistant")
+                        | .content[]? | select(.type == "output_text") | .text | select(type == "string")]
+                        | join("\n") | select(test("\\S"))' <<< "$RESPONSE")
+                     printf 'Fetched descriptions: %s\n' "$DESCRIPTIONS"
+                     DELIMITER=$(cat /proc/sys/kernel/random/uuid)
+                     printf 'NEWS<<%s\n%s\n%s\n' "$DELIMITER" "$DESCRIPTIONS" "$DELIMITER" >> "$GITHUB_OUTPUT"
            env:
               GROK_API_KEY: ${{ secrets.GROK_API_KEY }}
 
          - name: Summarize weather
            id: fetch-weather
            run: |
-               WEATHER_JSON=$(curl "http://api.weatherapi.com/v1/forecast.json?key=$WEATHERAPI_KEY&q=Sofia")
-               WEATHER_REPORT="Minimum temperature today will be $(echo $WEATHER_JSON | jq -r '.forecast.forecastday[0].day.mintemp_c') degrees Celsius.; Maximum temperature will be $(echo $WEATHER_JSON | jq -r '.forecast.forecastday[0].day.maxtemp_c') degrees Celsius.; Expected winds of up to $(echo $WEATHER_JSON | jq -r '.forecast.forecastday[0].day.maxwind_kph') km/h.; Humidity will be $(echo $WEATHER_JSON | jq -r '.forecast.forecastday[0].day.avghumidity') percent.; Expected visibility of around $(echo $WEATHER_JSON | jq -r '.forecast.forecastday[0].day.avgvis_km') km.; Weather condition is $(echo $WEATHER_JSON | jq -r '.forecast.forecastday[0].day.condition.text')."
-               if [[ $(echo $WEATHER_JSON | jq -r '.forecast.forecastday[0].day.daily_chance_of_rain') != "0" ]]; then
-                  WEATHER_REPORT="$WEATHER_REPORT; Expected rainfall of around $(echo $WEATHER_JSON | jq -r '.forecast.forecastday[0].day.totalprecip_mm') millimeters.; Chance of rainfall is $(echo $WEATHER_JSON | jq -r '.forecast.forecastday[0].day.daily_chance_of_rain')"
-               fi
-               if [[ $(echo $WEATHER_JSON | jq -r '.forecast.forecastday[0].day.daily_chance_of_snow') != "0" ]]; then
-                  WEATHER_REPORT="$WEATHER_REPORT; Expected snowfall of around $(echo $WEATHER_JSON | jq -r '.forecast.forecastday[0].day.totalsnow_cm') centimeters.; Chance of snowfall is $(echo $WEATHER_JSON | jq -r '.forecast.forecastday[0].day.daily_chance_of_snow')"
-               fi
-               echo "Summary of today's weather:"
-               echo "$WEATHER_REPORT"
-               echo "WEATHER=$WEATHER_REPORT" >> "$GITHUB_OUTPUT"
+               set -euo pipefail
+               WEATHER_JSON=$(curl --fail --silent --show-error --connect-timeout 20 --max-time 60 \
+                  "https://api.weatherapi.com/v1/forecast.json?key=$WEATHERAPI_KEY&q=Sofia")
+               jq -e '.error == null and (.forecast.forecastday[0].day |
+                  ([.mintemp_c, .maxtemp_c, .maxwind_kph, .avghumidity, .avgvis_km,
+                    .daily_chance_of_rain, .totalprecip_mm, .daily_chance_of_snow, .totalsnow_cm]
+                     | all(.[]; type == "number"))
+                  and (.condition.text | type == "string" and test("\\S")))' <<< "$WEATHER_JSON" > /dev/null
+               WEATHER_REPORT=$(jq -r '.forecast.forecastday[0].day |
+                  "Minimum temperature today will be \(.mintemp_c) degrees Celsius.; Maximum temperature will be \(.maxtemp_c) degrees Celsius.; Expected winds of up to \(.maxwind_kph) km/h.; Humidity will be \(.avghumidity) percent.; Expected visibility of around \(.avgvis_km) km.; Weather condition is \(.condition.text)."
+                  + (if .daily_chance_of_rain != 0 then "; Expected rainfall of around \(.totalprecip_mm) millimeters.; Chance of rainfall is \(.daily_chance_of_rain)" else "" end)
+                  + (if .daily_chance_of_snow != 0 then "; Expected snowfall of around \(.totalsnow_cm) centimeters.; Chance of snowfall is \(.daily_chance_of_snow)" else "" end)' <<< "$WEATHER_JSON")
+               printf "Summary of today's weather: %s\n" "$WEATHER_REPORT"
+               DELIMITER=$(cat /proc/sys/kernel/random/uuid)
+               printf 'WEATHER<<%s\n%s\n%s\n' "$DELIMITER" "$WEATHER_REPORT" "$DELIMITER" >> "$GITHUB_OUTPUT"
            env:
                WEATHERAPI_KEY: ${{ secrets.WEATHERAPI_KEY }}
 
          - name: Generate image prompt
            id: generate-prompt
            run: |
-               echo "Received descriptions:"
-               echo $NEWS
-               echo "Received weather:"
-               echo $WEATHER
-               PROMPT=$(curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent" \
+               set -euo pipefail
+               INSTRUCTIONS=$(cat <<'PROMPT_INSTRUCTIONS'
+               Using both the news and the weather information, create a text prompt for an image generation model. The resulting image should unambiguously reference the top story of today by incorporating specific elements from it and it should be funny, mocking the story akin to a front cover of a satirical news magazine or website. The cover should NOT contain the logo or title of the publisher and it should NOT contain title text for todays issue, just the image. You may use the weather report to set the atmospheric tone, but it must be calm and optimistic. The image must additionally contain (in the foreground or background) a white RV van, which MUST have bold black letters on the front of it, forming the words "Rest & Vest". The plate number MUST spell out "BUCARKA1". The van MUST have a Skoda badge on the front. The van may be adapted in any way necessary (even unrealistic) to fit the image (for instance, if there is a construction site the van may sport a crane on top). The image MUST contain (in the foreground or background) a black panther and a white puma cub, riding on a sandworm from Dune. Do not be vague with your prompt. Response should be written on a single line.
+               PROMPT_INSTRUCTIONS
+               )
+               REQUEST=$(jq -n --arg news "$NEWS" --arg weather "$WEATHER" --arg instructions "$INSTRUCTIONS" '{
+                  contents: [{parts: [{text: ("Here is the news report for today in Bulgarian: " + $news + ". Here is the weather report for today: " + $weather + ". " + $instructions)}]}],
+                  generationConfig: {maxOutputTokens: 4096, thinkingConfig: {thinkingLevel: "minimal"}}
+               }')
+               # Keep the cheaper text model; 3.8 Flash pricing also rises on 2027-01-01.
+               # https://ai.google.dev/gemini-api/docs/pricing
+               RESPONSE=$(curl --fail --silent --show-error --connect-timeout 20 --max-time 240 \
+                  "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent" \
                   -H "Content-Type: application/json" \
                   -H "x-goog-api-key: $GEMINI_API_KEY" \
-                  -d '{"contents": [{ "parts": [{"text": "Here is the news report for today in Bulgarian: '"$NEWS"'. Here is the weather report for today: '"$WEATHER"'. Using both the news and the weather information, create a text prompt for an image generation model. The resulting image should unambiguously reference the top story of today by incorporating specific elements from it and it should be funny, mocking the story akin to a front cover of a satirical news magazine or website. The cover should NOT contain the logo or title of the publisher and it should NOT contain title text for todays issue, just the image. You may use the weather report to set the atmospheric tone, but it must be calm and optimistic. The image must additionally contain (in the foreground or background) a white RV van, which MUST have bold black letters on the front of it, forming the words \"Rest & Vest\". The plate number MUST spell out \"BUCARKA1\". The van MUST have a Skoda badge on the front. The van may be adapted in any way necessary (even unrealistic) to fit the image (for instance, if there is a construction site the van may sport a crane on top). The image MUST contain (in the foreground or background) a black panther and a white puma cub, riding on a sandworm from Dune. Do not be vague with your prompt. Response should be written on a single line."}]}]}')
-               PROMPT_TEXT=$(echo $PROMPT | jq -r '.candidates[0].content.parts[0].text' | tail -n 1 | sed -e "s/'//g" -e 's/"/\\"/g')
-               if [ $PROMPT_TEXT == "null" ]; then
-                  echo "Failed to generate prompt:"
-                  echo $PROMPT
-                  exit 1
-               fi
+                  --data-binary "$REQUEST")
+               jq '{modelVersion, usageMetadata, promptFeedback, finishReasons: [.candidates[]?.finishReason]}' <<< "$RESPONSE"
+               jq -e '.error == null and .promptFeedback.blockReason == null
+                  and .candidates[0].finishReason == "STOP"' <<< "$RESPONSE" > /dev/null
+               PROMPT_TEXT=$(jq -er '[.candidates[0].content.parts[]? | select(.thought != true)
+                  | .text | select(type == "string")] | join("\n") | select(test("\\S"))' <<< "$RESPONSE")
                PROMPT_TEXT="$PROMPT_TEXT The cover should NOT contain the logo or title of the publisher and it should NOT contain title text for todays issue, just the image."
-               echo "Prompt for image:"
-               echo "$PROMPT_TEXT"
-               echo "PROMPT=$PROMPT_TEXT" >> "$GITHUB_OUTPUT"
+               printf 'Prompt for image: %s\n' "$PROMPT_TEXT"
+               DELIMITER=$(cat /proc/sys/kernel/random/uuid)
+               printf 'PROMPT<<%s\n%s\n%s\n' "$DELIMITER" "$PROMPT_TEXT" "$DELIMITER" >> "$GITHUB_OUTPUT"
            env:
                GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
                NEWS: ${{ steps.fetch-news.outputs.NEWS }}
@@ -103,32 +113,56 @@ jobs:
            uses: actions/checkout@v4
            with:
                sparse-checkout: |
-                  rv-of-the-day.webp
+                  /rv-of-the-day.webp
+                  /description-of-the-day.txt
                sparse-checkout-cone-mode: false
 
          - name: Generate images
            run: |
-               RESPONSE=$(curl -s -X POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent \
-               -H "Content-Type: application/json" \
-               -H "x-goog-api-key: $GEMINI_API_KEY" \
-               -d '{"contents": [{ "parts": [{"text": "'"$PROMPT"'"}]}], "generationConfig": {"imageConfig": {"aspectRatio": "3:2", "imageSize": "2K"}, "responseModalities": ["Image"]}}')
-               echo "Response from Gemini:"
-               echo $RESPONSE
-               echo $RESPONSE | jq -r '.candidates[0].content.parts[0].inlineData.data' | base64 --decode > $GITHUB_WORKSPACE/image
-               cwebp -q 80 $GITHUB_WORKSPACE/image -o $GITHUB_WORKSPACE/image.webp
+               set -euo pipefail
+               # Better visual/text fidelity at $0.0504 per 2K image output, plus input/thinking.
+               # https://ai.google.dev/gemini-api/docs/models/gemini-nano-banana-2.1
+               # https://ai.google.dev/gemini-api/docs/pricing
+               REQUEST=$(jq -n --arg prompt "$PROMPT" '{
+                  contents: [{parts: [{text: $prompt}]}],
+                  generationConfig: {
+                     imageConfig: {aspectRatio: "3:2", imageSize: "2K"},
+                     responseModalities: ["IMAGE"], maxOutputTokens: 8192,
+                     thinkingConfig: {thinkingLevel: "minimal"}
+                  }
+               }')
+               RESPONSE_FILE="$RUNNER_TEMP/image-response.json"
+               curl --fail --silent --show-error --connect-timeout 20 --max-time 240 \
+                  https://generativelanguage.googleapis.com/v1/models/gemini-nano-banana-2.1:generateContent \
+                  -H "Content-Type: application/json" \
+                  -H "x-goog-api-key: $GEMINI_API_KEY" \
+                  --data-binary "$REQUEST" --output "$RESPONSE_FILE"
+               jq '{modelVersion, usageMetadata, promptFeedback, finishReasons: [.candidates[]?.finishReason]}' "$RESPONSE_FILE"
+               jq -e '.error == null and .promptFeedback.blockReason == null
+                  and .candidates[0].finishReason == "STOP"' "$RESPONSE_FILE" > /dev/null
+               jq -er '[.candidates[0].content.parts[]? | select(.thought != true)
+                  | .inlineData | select((.mimeType // "") | startswith("image/"))
+                  | .data | select(type == "string" and test("\\S"))]
+                  | if length == 1 then .[0] else error("Expected exactly one final image") end' "$RESPONSE_FILE" \
+                     | base64 --decode > "$GITHUB_WORKSPACE/image"
+               test -s "$GITHUB_WORKSPACE/image"
+               cwebp -q 80 "$GITHUB_WORKSPACE/image" -o "$GITHUB_WORKSPACE/image.webp"
+               test -s "$GITHUB_WORKSPACE/image.webp"
            env:
                GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
                PROMPT: ${{ steps.generate-prompt.outputs.PROMPT }}
 
          - name: Upload van of the day
            run: |
-               git pull
-               mv $GITHUB_WORKSPACE/image.webp rv-of-the-day.webp
-               echo $PROMPT > description-of-the-day.txt
+               set -euo pipefail
+               git pull --ff-only
+               mv "$GITHUB_WORKSPACE/image.webp" rv-of-the-day.webp
+               printf '%s\n' "$PROMPT" > description-of-the-day.txt
                git config --global user.name "github-actions[bot]"
                git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-               git add rv-of-the-day.webp
+               git add rv-of-the-day.webp description-of-the-day.txt
                git commit -m "Update RV of the day via GitHub Actions"
                git push
            env:
                GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+               PROMPT: ${{ steps.generate-prompt.outputs.PROMPT }}
