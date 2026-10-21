@@ -1,5 +1,8 @@
-<html>
+<!doctype html>
+<html lang="en">
 <head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
     <link rel="stylesheet" type="text/css" href="node_modules/flipdown/dist/flipdown.min.css"/>
     <script type="text/javascript" src="node_modules/flipdown/dist/flipdown.min.js"></script>
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-60JLQKGCRH"></script>
@@ -56,6 +59,108 @@
             margin-right: auto;
             margin-top: 2rem;
         }
+
+        .image-prompt {
+            position: fixed;
+            right: max(1rem, env(safe-area-inset-right));
+            bottom: max(1rem, env(safe-area-inset-bottom));
+            z-index: 2;
+            color: #f8fafc;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+
+        .prompt-trigger, .prompt-close {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 44px;
+            min-height: 44px;
+            border: 1px solid rgba(255, 255, 255, .2);
+            color: inherit;
+            cursor: pointer;
+        }
+
+        .prompt-trigger {
+            gap: .5rem;
+            padding: 0 1rem;
+            border-radius: 999px;
+            background: rgba(18, 22, 28, .8);
+            -webkit-backdrop-filter: blur(16px);
+            backdrop-filter: blur(16px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, .15);
+            font: 500 .8125rem/1 system-ui, sans-serif;
+        }
+
+        .prompt-trigger:hover, .prompt-trigger[aria-expanded="true"] {
+            background: rgba(34, 40, 50, .95);
+        }
+
+        .image-prompt button:focus-visible {
+            outline: 2px solid #fff;
+            outline-offset: 4px;
+        }
+
+        .prompt-panel {
+            position: absolute;
+            right: 0;
+            bottom: calc(100% + .75rem);
+            width: min(26rem, calc(100vw - 2rem - env(safe-area-inset-left) - env(safe-area-inset-right)));
+            box-sizing: border-box;
+            padding: 1.25rem;
+            border: 1px solid rgba(255, 255, 255, .18);
+            border-radius: 1.25rem;
+            background: rgba(18, 22, 28, .94);
+            -webkit-backdrop-filter: blur(20px);
+            backdrop-filter: blur(20px);
+            box-shadow: 0 12px 48px rgba(0, 0, 0, .3);
+        }
+
+        .prompt-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-bottom: .75rem;
+        }
+
+        .prompt-header h2 {
+            margin: 0;
+            font-size: .9375rem;
+            font-weight: 600;
+        }
+
+        .prompt-close {
+            flex: 0 0 44px;
+            margin: -.5rem -.5rem -.5rem 0;
+            border: 0;
+            border-radius: 50%;
+            background: transparent;
+        }
+
+        .prompt-close:hover {
+            background: rgba(255, 255, 255, .1);
+        }
+
+        .prompt-text {
+            max-height: 40vh;
+            max-height: min(40dvh, 22rem);
+            margin: 0;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            scrollbar-width: thin;
+            scrollbar-color: #667080 transparent;
+            color: #d7dce4;
+            font-size: .875rem;
+            line-height: 1.65;
+            overflow-wrap: anywhere;
+            white-space: pre-wrap;
+        }
+        @media (max-width: 600px) {
+            .prompt-text {
+                max-height: 28vh;
+                max-height: min(28dvh, 14rem);
+            }
+        }
     </style>
     <title> Rest & Vest </title>
 </head>
@@ -64,6 +169,107 @@
     <div class="image"></div>
     <div class="fireworks"></div>
     <div id="flipdown" class="flipdown"></div>
+    <div class="image-prompt">
+        <button class="prompt-trigger" type="button" aria-expanded="false" aria-controls="prompt-panel">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                <path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5Z"/>
+            </svg>
+            <span>Prompt</span>
+        </button>
+        <section class="prompt-panel" id="prompt-panel" aria-labelledby="prompt-title" hidden>
+            <div class="prompt-header">
+                <h2 id="prompt-title">Behind today’s image</h2>
+                <button class="prompt-close" type="button" aria-label="Close prompt">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                        <path d="m6 6 12 12M6 18 18 6"/>
+                    </svg>
+                </button>
+            </div>
+            <p class="prompt-text" tabindex="0" aria-label="Image generation prompt" aria-live="polite">Loading today’s prompt…</p>
+        </section>
+    </div>
+    <script>
+        (() => {
+            const control = document.querySelector('.image-prompt');
+            const trigger = control.querySelector('.prompt-trigger');
+            const panel = control.querySelector('.prompt-panel');
+            const text = control.querySelector('.prompt-text');
+            const close = control.querySelector('.prompt-close');
+            let pinned = false;
+            let closeTimer;
+            let loaded = false;
+            let loading = false;
+
+            async function loadPrompt() {
+                if (loaded || loading) return;
+                loading = true;
+                text.textContent = 'Loading today’s prompt…';
+                text.setAttribute('aria-busy', 'true');
+                try {
+                    const response = await fetch('description-of-the-day.txt', { cache: 'no-cache' });
+                    if (!response.ok) throw new Error('Prompt request failed');
+                    const prompt = await response.text();
+                    if (!prompt.trim()) throw new Error('Empty prompt');
+                    text.textContent = prompt.trim();
+                    loaded = true;
+                } catch {
+                    text.textContent = 'Today’s prompt is unavailable. Close and reopen to try again.';
+                } finally {
+                    loading = false;
+                    text.removeAttribute('aria-busy');
+                }
+            }
+
+            function showPrompt() {
+                clearTimeout(closeTimer);
+                panel.hidden = false;
+                trigger.setAttribute('aria-expanded', 'true');
+                loadPrompt();
+            }
+
+            function hidePrompt() {
+                clearTimeout(closeTimer);
+                pinned = false;
+                panel.hidden = true;
+                trigger.setAttribute('aria-expanded', 'false');
+            }
+
+            control.addEventListener('pointerenter', event => {
+                clearTimeout(closeTimer);
+                if (event.pointerType === 'mouse' && matchMedia('(hover: hover)').matches) showPrompt();
+            });
+            control.addEventListener('pointerleave', () => {
+                if (!pinned && !panel.contains(document.activeElement)) {
+                    closeTimer = setTimeout(hidePrompt, 200);
+                }
+            });
+            trigger.addEventListener('click', () => {
+                if (pinned) {
+                    hidePrompt();
+                } else {
+                    pinned = true;
+                    showPrompt();
+                }
+            });
+            close.addEventListener('click', () => {
+                hidePrompt();
+                trigger.focus();
+            });
+            document.addEventListener('pointerdown', event => {
+                if (!control.contains(event.target)) hidePrompt();
+            });
+            document.addEventListener('keydown', event => {
+                if (event.key === 'Escape' && !panel.hidden) {
+                    const restoreFocus = panel.contains(document.activeElement);
+                    hidePrompt();
+                    if (restoreFocus) trigger.focus();
+                }
+            });
+            control.addEventListener('focusout', event => {
+                if (!control.contains(event.relatedTarget)) hidePrompt();
+            });
+        })();
+    </script>
     <script>
         const counter = new FlipDown(1797285600, 'flipdown').start();
         counter.ifEnded(() => {
