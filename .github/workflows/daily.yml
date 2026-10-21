@@ -132,11 +132,16 @@ jobs:
                   }
                }')
                RESPONSE_FILE="$RUNNER_TEMP/image-response.json"
-               curl --fail --silent --show-error --connect-timeout 20 --max-time 240 \
-                  https://generativelanguage.googleapis.com/v1/models/gemini-nano-banana-2.1:generateContent \
+               # Use v1beta consistently for native image generation features.
+               if ! curl --fail-with-body --silent --show-error --connect-timeout 20 --max-time 240 \
+                  https://generativelanguage.googleapis.com/v1beta/models/gemini-nano-banana-2.1:generateContent \
                   -H "Content-Type: application/json" \
                   -H "x-goog-api-key: $GEMINI_API_KEY" \
-                  --data-binary "$REQUEST" --output "$RESPONSE_FILE"
+                  --data-binary "$REQUEST" --output "$RESPONSE_FILE"; then
+                  # Log only API error fields, never response parts or image data.
+                  jq '{error: (.error | {code, status, message})}' "$RESPONSE_FILE" >&2
+                  exit 1
+               fi
                jq '{modelVersion, usageMetadata, promptFeedback, finishReasons: [.candidates[]?.finishReason]}' "$RESPONSE_FILE"
                jq -e '.error == null and .promptFeedback.blockReason == null
                   and .candidates[0].finishReason == "STOP"' "$RESPONSE_FILE" > /dev/null
