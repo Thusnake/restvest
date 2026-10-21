@@ -61,60 +61,44 @@
         }
 
         .image-prompt {
+            --bottom: max(1rem, env(safe-area-inset-bottom));
             position: fixed;
             right: max(1rem, env(safe-area-inset-right));
-            bottom: max(1rem, env(safe-area-inset-bottom));
+            bottom: var(--bottom);
             z-index: 2;
             color: #f8fafc;
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            font: .875rem/1.65 system-ui, sans-serif;
         }
-
-        .prompt-trigger, .prompt-close {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
+        .prompt-trigger, .prompt-panel {
+            border: 1px solid rgb(255 255 255 / .2);
+            background: rgb(18 22 28 / .94);
+            backdrop-filter: blur(16px);
+            box-shadow: 0 8px 32px rgb(0 0 0 / .2);
+            color: inherit;
+            font: inherit;
+        }
+        .image-prompt button {
             min-width: 44px;
             min-height: 44px;
-            border: 1px solid rgba(255, 255, 255, .2);
-            color: inherit;
             cursor: pointer;
         }
-
         .prompt-trigger {
-            gap: .5rem;
             padding: 0 1rem;
             border-radius: 999px;
-            background: rgba(18, 22, 28, .8);
-            -webkit-backdrop-filter: blur(16px);
-            backdrop-filter: blur(16px);
-            box-shadow: 0 4px 20px rgba(0, 0, 0, .15);
-            font: 500 .8125rem/1 system-ui, sans-serif;
         }
-
-        .prompt-trigger:hover, .prompt-trigger[aria-expanded="true"] {
-            background: rgba(34, 40, 50, .95);
-        }
-
         .image-prompt button:focus-visible {
-            outline: 2px solid #fff;
+            outline: 2px solid white;
             outline-offset: 4px;
         }
-
         .prompt-panel {
-            position: absolute;
-            right: 0;
-            bottom: calc(100% + .75rem);
+            position: fixed;
+            inset: auto max(1rem, env(safe-area-inset-right)) calc(var(--bottom) + 3.5rem) auto;
             width: min(26rem, calc(100vw - 2rem - env(safe-area-inset-left) - env(safe-area-inset-right)));
             box-sizing: border-box;
+            margin: 0;
             padding: 1.25rem;
-            border: 1px solid rgba(255, 255, 255, .18);
             border-radius: 1.25rem;
-            background: rgba(18, 22, 28, .94);
-            -webkit-backdrop-filter: blur(20px);
-            backdrop-filter: blur(20px);
-            box-shadow: 0 12px 48px rgba(0, 0, 0, .3);
         }
-
         .prompt-header {
             display: flex;
             align-items: center;
@@ -122,44 +106,30 @@
             gap: 1rem;
             margin-bottom: .75rem;
         }
-
         .prompt-header h2 {
             margin: 0;
             font-size: .9375rem;
-            font-weight: 600;
         }
-
         .prompt-close {
-            flex: 0 0 44px;
             margin: -.5rem -.5rem -.5rem 0;
             border: 0;
             border-radius: 50%;
             background: transparent;
+            color: inherit;
+            font-size: 1.5rem;
         }
-
-        .prompt-close:hover {
-            background: rgba(255, 255, 255, .1);
-        }
-
         .prompt-text {
-            max-height: 40vh;
             max-height: min(40dvh, 22rem);
             margin: 0;
-            overflow-y: auto;
+            overflow: auto;
             overscroll-behavior: contain;
             scrollbar-width: thin;
-            scrollbar-color: #667080 transparent;
             color: #d7dce4;
-            font-size: .875rem;
-            line-height: 1.65;
             overflow-wrap: anywhere;
             white-space: pre-wrap;
         }
         @media (max-width: 600px) {
-            .prompt-text {
-                max-height: 28vh;
-                max-height: min(28dvh, 14rem);
-            }
+            .prompt-text { max-height: min(28dvh, 14rem); }
         }
     </style>
     <title> Rest & Vest </title>
@@ -170,20 +140,14 @@
     <div class="fireworks"></div>
     <div id="flipdown" class="flipdown"></div>
     <div class="image-prompt">
-        <button class="prompt-trigger" type="button" aria-expanded="false" aria-controls="prompt-panel">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-                <path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5Z"/>
-            </svg>
-            <span>Prompt</span>
+        <button class="prompt-trigger" type="button" popovertarget="prompt-panel">
+            <span aria-hidden="true">✧</span> Prompt
         </button>
-        <section class="prompt-panel" id="prompt-panel" aria-labelledby="prompt-title" hidden>
+        <section class="prompt-panel" id="prompt-panel" popover aria-labelledby="prompt-title">
             <div class="prompt-header">
                 <h2 id="prompt-title">Behind today’s image</h2>
-                <button class="prompt-close" type="button" aria-label="Close prompt">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-                        <path d="m6 6 12 12M6 18 18 6"/>
-                    </svg>
-                </button>
+                <button class="prompt-close" type="button" aria-label="Close prompt"
+                    popovertarget="prompt-panel" popovertargetaction="hide">×</button>
             </div>
             <p class="prompt-text" tabindex="0" aria-label="Image generation prompt" aria-live="polite">Loading today’s prompt…</p>
         </section>
@@ -194,79 +158,43 @@
             const trigger = control.querySelector('.prompt-trigger');
             const panel = control.querySelector('.prompt-panel');
             const text = control.querySelector('.prompt-text');
-            const close = control.querySelector('.prompt-close');
-            let pinned = false;
+            let hoverOnly = false;
             let closeTimer;
-            let loaded = false;
-            let loading = false;
 
-            async function loadPrompt() {
-                if (loaded || loading) return;
-                loading = true;
-                text.textContent = 'Loading today’s prompt…';
-                text.setAttribute('aria-busy', 'true');
-                try {
-                    const response = await fetch('description-of-the-day.txt', { cache: 'no-cache' });
+            fetch('description-of-the-day.txt', { cache: 'no-cache' })
+                .then(async response => {
                     if (!response.ok) throw new Error('Prompt request failed');
-                    const prompt = await response.text();
-                    if (!prompt.trim()) throw new Error('Empty prompt');
-                    text.textContent = prompt.trim();
-                    loaded = true;
-                } catch {
-                    text.textContent = 'Today’s prompt is unavailable. Close and reopen to try again.';
-                } finally {
-                    loading = false;
-                    text.removeAttribute('aria-busy');
-                }
-            }
+                    const prompt = (await response.text()).trim();
+                    if (!prompt) throw new Error('Empty prompt');
+                    text.textContent = prompt;
+                })
+                .catch(() => {
+                    text.textContent = 'Today’s prompt is unavailable. Reload to try again.';
+                });
 
-            function showPrompt() {
-                clearTimeout(closeTimer);
-                panel.hidden = false;
-                trigger.setAttribute('aria-expanded', 'true');
-                loadPrompt();
-            }
-
-            function hidePrompt() {
-                clearTimeout(closeTimer);
-                pinned = false;
-                panel.hidden = true;
-                trigger.setAttribute('aria-expanded', 'false');
-            }
-
+            // Native popovers handle clicks, Escape, outside dismissal, and accessibility.
+            // Adapt hover previews and focus the text for keyboard readers.
+            panel.addEventListener('beforetoggle', () => clearTimeout(closeTimer));
             control.addEventListener('pointerenter', event => {
                 clearTimeout(closeTimer);
-                if (event.pointerType === 'mouse' && matchMedia('(hover: hover)').matches) showPrompt();
+                if (event.pointerType === 'mouse' && matchMedia('(hover: hover)').matches
+                    && !panel.matches(':popover-open')) {
+                    hoverOnly = true;
+                    panel.showPopover();
+                }
             });
             control.addEventListener('pointerleave', () => {
-                if (!pinned && !panel.contains(document.activeElement)) {
-                    closeTimer = setTimeout(hidePrompt, 200);
+                if (hoverOnly && !panel.contains(document.activeElement)) {
+                    closeTimer = setTimeout(() => panel.hidePopover(), 200);
                 }
             });
-            trigger.addEventListener('click', () => {
-                if (pinned) {
-                    hidePrompt();
-                } else {
-                    pinned = true;
-                    showPrompt();
-                }
-            });
-            close.addEventListener('click', () => {
-                hidePrompt();
-                trigger.focus();
-            });
-            document.addEventListener('pointerdown', event => {
-                if (!control.contains(event.target)) hidePrompt();
-            });
-            document.addEventListener('keydown', event => {
-                if (event.key === 'Escape' && !panel.hidden) {
-                    const restoreFocus = panel.contains(document.activeElement);
-                    hidePrompt();
-                    if (restoreFocus) trigger.focus();
-                }
-            });
-            control.addEventListener('focusout', event => {
-                if (!control.contains(event.relatedTarget)) hidePrompt();
+            trigger.addEventListener('click', event => {
+                if (hoverOnly && panel.matches(':popover-open')) panel.hidePopover();
+                hoverOnly = false;
+                // Put keyboard users directly in the scrollable prompt.
+                if (event.detail === 0) requestAnimationFrame(() => {
+                    if (panel.matches(':popover-open')) text.focus();
+                });
             });
         })();
     </script>
