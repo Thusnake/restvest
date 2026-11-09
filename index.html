@@ -1,5 +1,8 @@
-<html>
+<!doctype html>
+<html lang="en">
 <head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
     <link rel="stylesheet" type="text/css" href="node_modules/flipdown/dist/flipdown.min.css"/>
     <script type="text/javascript" src="node_modules/flipdown/dist/flipdown.min.js"></script>
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-60JLQKGCRH"></script>
@@ -56,6 +59,78 @@
             margin-right: auto;
             margin-top: 2rem;
         }
+
+        .image-prompt {
+            --bottom: max(1rem, env(safe-area-inset-bottom));
+            position: fixed;
+            right: max(1rem, env(safe-area-inset-right));
+            bottom: var(--bottom);
+            z-index: 2;
+            color: #f8fafc;
+            font: .875rem/1.65 system-ui, sans-serif;
+        }
+        .prompt-trigger, .prompt-panel {
+            border: 1px solid rgb(255 255 255 / .2);
+            background: rgb(18 22 28 / .94);
+            backdrop-filter: blur(16px);
+            box-shadow: 0 8px 32px rgb(0 0 0 / .2);
+            color: inherit;
+            font: inherit;
+        }
+        .image-prompt button {
+            min-width: 44px;
+            min-height: 44px;
+            cursor: pointer;
+        }
+        .prompt-trigger {
+            padding: 0 1rem;
+            border-radius: 999px;
+        }
+        .image-prompt button:focus-visible {
+            outline: 2px solid white;
+            outline-offset: 4px;
+        }
+        .prompt-panel {
+            position: fixed;
+            inset: auto max(1rem, env(safe-area-inset-right)) calc(var(--bottom) + 3.5rem) auto;
+            width: min(26rem, calc(100vw - 2rem - env(safe-area-inset-left) - env(safe-area-inset-right)));
+            box-sizing: border-box;
+            margin: 0;
+            padding: 1.25rem;
+            border-radius: 1.25rem;
+        }
+        .prompt-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-bottom: .75rem;
+        }
+        .prompt-header h2 {
+            margin: 0;
+            font-size: .9375rem;
+        }
+        .prompt-close {
+            margin: -.5rem -.5rem -.5rem 0;
+            border: 0;
+            border-radius: 50%;
+            background: transparent;
+            color: inherit;
+            font-size: 1.5rem;
+        }
+        .prompt-text {
+            max-height: min(40dvh, 22rem);
+            margin: 0;
+            overflow: auto;
+            overscroll-behavior: contain;
+            scrollbar-width: thin;
+            color: #d7dce4;
+            overflow-wrap: anywhere;
+            white-space: pre-wrap;
+        }
+        @media (max-width: 600px) {
+            .prompt-text { max-height: min(28dvh, 14rem); }
+        }
     </style>
     <title> Rest & Vest </title>
 </head>
@@ -64,6 +139,65 @@
     <div class="image"></div>
     <div class="fireworks"></div>
     <div id="flipdown" class="flipdown"></div>
+    <div class="image-prompt">
+        <button class="prompt-trigger" type="button" popovertarget="prompt-panel">
+            <span aria-hidden="true">✧</span> Prompt
+        </button>
+        <section class="prompt-panel" id="prompt-panel" popover aria-labelledby="prompt-title">
+            <div class="prompt-header">
+                <h2 id="prompt-title">Behind today’s image</h2>
+                <button class="prompt-close" type="button" aria-label="Close prompt"
+                    popovertarget="prompt-panel" popovertargetaction="hide">×</button>
+            </div>
+            <p class="prompt-text" tabindex="0" aria-label="Image generation prompt" aria-live="polite">Loading today’s prompt…</p>
+        </section>
+    </div>
+    <script>
+        (() => {
+            const control = document.querySelector('.image-prompt');
+            const trigger = control.querySelector('.prompt-trigger');
+            const panel = control.querySelector('.prompt-panel');
+            const text = control.querySelector('.prompt-text');
+            let hoverOnly = false;
+            let closeTimer;
+
+            fetch('description-of-the-day.txt', { cache: 'no-cache' })
+                .then(async response => {
+                    if (!response.ok) throw new Error('Prompt request failed');
+                    const prompt = (await response.text()).trim();
+                    if (!prompt) throw new Error('Empty prompt');
+                    text.textContent = prompt;
+                })
+                .catch(() => {
+                    text.textContent = 'Today’s prompt is unavailable. Reload to try again.';
+                });
+
+            // Native popovers handle clicks, Escape, outside dismissal, and accessibility.
+            // Adapt hover previews and focus the text for keyboard readers.
+            panel.addEventListener('beforetoggle', () => clearTimeout(closeTimer));
+            control.addEventListener('pointerenter', event => {
+                clearTimeout(closeTimer);
+                if (event.pointerType === 'mouse' && matchMedia('(hover: hover)').matches
+                    && !panel.matches(':popover-open')) {
+                    hoverOnly = true;
+                    panel.showPopover();
+                }
+            });
+            control.addEventListener('pointerleave', () => {
+                if (hoverOnly && !panel.contains(document.activeElement)) {
+                    closeTimer = setTimeout(() => panel.hidePopover(), 200);
+                }
+            });
+            trigger.addEventListener('click', event => {
+                if (hoverOnly && panel.matches(':popover-open')) panel.hidePopover();
+                hoverOnly = false;
+                // Put keyboard users directly in the scrollable prompt.
+                if (event.detail === 0) requestAnimationFrame(() => {
+                    if (panel.matches(':popover-open')) text.focus();
+                });
+            });
+        })();
+    </script>
     <script>
         const counter = new FlipDown(1797285600, 'flipdown').start();
         counter.ifEnded(() => {
