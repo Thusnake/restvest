@@ -141,15 +141,15 @@
     <div id="flipdown" class="flipdown"></div>
     <div class="image-prompt">
         <button class="prompt-trigger" type="button" popovertarget="prompt-panel">
-            <span aria-hidden="true">✧</span> Prompt
+            <span aria-hidden="true">✧</span> News
         </button>
         <section class="prompt-panel" id="prompt-panel" popover aria-labelledby="prompt-title">
             <div class="prompt-header">
                 <h2 id="prompt-title">Behind today’s image</h2>
-                <button class="prompt-close" type="button" aria-label="Close prompt"
+                <button class="prompt-close" type="button" aria-label="Close news panel"
                     popovertarget="prompt-panel" popovertargetaction="hide">×</button>
             </div>
-            <p class="prompt-text" tabindex="0" aria-label="Image generation prompt" aria-live="polite">Loading today’s prompt…</p>
+            <p class="prompt-text" tabindex="0" aria-label="News behind today’s image" aria-live="polite">Loading today’s news…</p>
         </section>
     </div>
     <script>
@@ -163,13 +163,13 @@
 
             fetch('description-of-the-day.txt', { cache: 'no-cache' })
                 .then(async response => {
-                    if (!response.ok) throw new Error('Prompt request failed');
-                    const prompt = (await response.text()).trim();
-                    if (!prompt) throw new Error('Empty prompt');
-                    text.textContent = prompt;
+                    if (!response.ok) throw new Error('News request failed');
+                    const news = (await response.text()).trim();
+                    if (!news) throw new Error('Empty news description');
+                    text.textContent = news;
                 })
                 .catch(() => {
-                    text.textContent = 'Today’s prompt is unavailable. Reload to try again.';
+                    text.textContent = 'Today’s news is unavailable. Reload to try again.';
                 });
 
             // Native popovers handle clicks, Escape, outside dismissal, and accessibility.
@@ -191,7 +191,7 @@
             trigger.addEventListener('click', event => {
                 if (hoverOnly && panel.matches(':popover-open')) panel.hidePopover();
                 hoverOnly = false;
-                // Put keyboard users directly in the scrollable prompt.
+                // Put keyboard users directly in the scrollable news text.
                 if (event.detail === 0) requestAnimationFrame(() => {
                     if (panel.matches(':popover-open')) text.focus();
                 });
